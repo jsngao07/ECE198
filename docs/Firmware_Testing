@@ -1,0 +1,27 @@
+# Firmware Documentation
+
+## Overview
+The Arduino firmware controls the OLED display, potentiometer, and push buttons. It allows patients to select exercises, view their prescribed targets, and record their exercise progress.
+
+## Main Features
+- **Exercise Selection:** Patients use the potentiometer to choose between Arm Curl, Leg Raise, and Sit to Stand.
+- **Exercise Targets:** The OLED displays the target repetitions and time for each exercise.
+- **Exercise Timer:** Patients can start, pause, and resume the timer using buttons.
+- **Repetition Input:** After finishing an exercise, patients use the potentiometer to enter their completed repetitions (1–104).
+- **Exercise Summary:** The OLED displays the completed repetitions and exercise time.
+
+## Button Controls
+- **D3:** Start 
+- **D4:** Stop 
+- **D5:** Select / Confirm
+- **D6:** Back / Reset
+
+## Current Implementation
+The exercise targets are currently hard-coded in the Arduino firmware for testing purposes.
+
+The firmware is designed to send exercise records through USB Serial communication for future integration with the Python application and SQLite database.
+
+## Next Steps
+- Connect the Arduino firmware to the Python application.
+- Retrieve personalized exercise targets from the database.
+- Store completed exercise records digitally.
