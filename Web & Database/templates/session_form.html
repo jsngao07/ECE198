@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Record session{% endblock %}
+{% block page_heading %}Sessions{% endblock %}
+{% block content %}
+<div class="form-wrap">
+    <div class="page-heading"><div><a class="back-link" href="{{ url_for('sessions') }}">← Sessions</a><h1>Record session</h1></div></div>
+    <form class="panel form-panel" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="field"><label for="patient_id">Patient <span class="required">*</span></label><select id="patient_id" name="patient_id" required><option value="">Select a patient</option>{% for patient in patients %}<option value="{{ patient.id }}">{{ patient.name }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="exercise_id">Exercise <span class="required">*</span></label><select id="exercise_id" name="exercise_id" required><option value="">Select an exercise</option>{% for exercise in exercises %}<option value="{{ exercise.id }}">{{ exercise.name }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="session_date">Date <span class="required">*</span></label><input id="session_date" type="date" name="session_date" value="{{ today }}" required></div>
+        <div class="field-grid">
+            <div class="field"><label for="sets">Sets</label><input id="sets" type="number" name="sets" min="1" max="100" value="3" required></div>
+            <div class="field"><label for="reps">Reps per set</label><input id="reps" type="number" name="reps" min="1" max="1000" value="10" required></div>
+            <div class="field"><label for="duration_minutes">Duration (min)</label><input id="duration_minutes" type="number" name="duration_minutes" min="1" max="1440" placeholder="Optional"></div>
+        </div>
+        <div class="field"><label for="notes">Notes</label><textarea id="notes" name="notes" rows="3"></textarea></div>
+        <div class="form-actions"><a class="button secondary" href="{{ url_for('sessions') }}">Cancel</a><button class="button primary" type="submit">Save session</button></div>
+    </form>
+</div>
+{% endblock %}

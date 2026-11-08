@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Overview{% endblock %}
+{% block page_heading %}Overview{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div><h1>Overview</h1><p class="muted">Your exercise activity at a glance.</p></div>
+    <a class="button primary" href="{{ url_for('session_new') }}">＋ Record session</a>
+</div>
+<div class="stat-grid">
+    <article class="stat-card"><span class="stat-label">Patients</span><strong>{{ patient_count }}</strong><a href="{{ url_for('patients') }}">View patients →</a></article>
+    <article class="stat-card"><span class="stat-label">Exercises</span><strong>{{ exercise_count }}</strong><a href="{{ url_for('exercises') }}">View exercises →</a></article>
+    <article class="stat-card"><span class="stat-label">Sessions</span><strong>{{ session_count }}</strong><a href="{{ url_for('sessions') }}">View sessions →</a></article>
+</div>
+<section class="panel">
+    <div class="panel-heading"><h2>Recent sessions</h2><a class="text-link" href="{{ url_for('sessions') }}">All sessions →</a></div>
+    {% if recent_sessions %}
+    <div class="table-wrap"><table>
+        <thead><tr><th>Patient</th><th>Exercise</th><th>Date</th><th>Volume</th></tr></thead>
+        <tbody>
+        {% for item in recent_sessions %}
+        <tr>
+            <td class="strong">{{ item.patient.name }}</td>
+            <td>{{ item.exercise.name }}</td>
+            <td>{{ item.session_date.strftime("%b %d, %Y") }}</td>
+            <td>{{ item.sets }} × {{ item.reps }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table></div>
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">▤</div><h3>No sessions yet</h3><p>Record an exercise session to see activity here.</p><a class="button secondary" href="{{ url_for('session_new') }}">Record a session</a></div>
+    {% endif %}
+</section>
+{% endblock %}
