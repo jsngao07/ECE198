@@ -1,32 +1,30 @@
-# Firmware Documentation
+# Firmware Documentation and Testing
 
-## Overview
-The Arduino firmware controls the OLED display, potentiometer, and push buttons. It allows patients to select exercises, view their prescribed targets, and record their exercise progress.
+## Firmware Versions
 
-## Main Features
-- **Exercise Selection:** Patients use the potentiometer to choose between Arm Curl, Leg Raise, and Sit to Stand.
-- **Exercise Targets:** The OLED displays the target repetitions and time for each exercise.
-- **Exercise Timer:** Patients can start, pause, and resume the timer using buttons.
-- **Repetition Input:** After finishing an exercise, patients use the potentiometer to enter their completed repetitions (0–104).
-- **Exercise Summary:** The OLED displays the completed repetitions and exercise time.
+- [V2](../firmware/v2/CCCARE_Arduino/CCCARE_Arduino.ino) adds automatic repetition counting with a three-axis analog accelerometer. The potentiometer selects the exercise.
+- [V1](../firmware/v1/CCCARE_Arduino/CCCARE_Arduino.ino) uses the potentiometer for exercise selection and manual repetition entry (0–104). The team found the potentiometer readings insufficiently accurate for reliable manual entry in the prototype.
 
-## Button Controls
-- **D3:** Start
-- **D4:** Stop
-- **D5:** Select / Confirm
-- **D6:** Back / Reset
+Both versions offer Arm Curl, Leg Raise, and Sit to Stand. The OLED shows hard-coded targets and the exercise summary. The firmware sends confirmed exercise records over USB Serial at 115200 baud. Receiving those records in Python and saving them to SQLite are planned integration steps.
 
-## Current Implementation
-The exercise targets are currently hard-coded in the Arduino firmware for testing purposes. The firmware prints exercise records over USB Serial at 115200 baud when the user confirms the manually entered repetition count. Receiving those records in the Python application and saving them to SQLite are planned integration steps.
+## V2 Wiring and Controls
 
-## Accelerometer Update
-The team decided to add an accelerometer for automatic repetition counting because the potentiometer readings were insufficiently accurate in the current setup.
+- Potentiometer on A0. Accelerometer X, Y, and Z on A1, A2, and A3 respectively.
+- D3 starts or resumes the timer. D4 stops it.
+- D5 selects an exercise, advances from the target screen, and confirms the result.
+- D6 goes back or resets, depending on the screen.
+- The [standalone accelerometer sketch](../tests/Accelerometer_Test/Accelerometer_Test.ino) shows raw axis readings at 9600 baud with a 500 ms delay.
 
-The standalone test in tests/Accelerometer_Test/Accelerometer_Test.ino prints raw X/Y/Z values from A1/A2/A3 at 9600 baud with a 500 ms delay. The main firmware still uses the potentiometer for menu selection and manual repetition input. Automatic counting is pending implementation and validation.
+## How V2 Counts Repetitions
 
-## Next Steps
-- Keep the potentiometer on A0 and use A1/A2/A3 for the accelerometer when integrating it.
-- Confirm sensor mounting and sampling requirements, then implement and validate automatic counting against manually observed repetitions.
-- Connect the Arduino firmware to the Python application.
-- Retrieve personalized exercise targets from the database.
-- Store completed exercise records digitally.
+On the first Start after a reset, V2 calibrates against the starting position. While the timer runs, it filters the three axis readings sampled at 20 ms intervals and measures how far they move from the baseline. A repetition is counted after the signal stays above the upper threshold and then returns below the lower threshold. Each phase needs a 180 ms hold, and consecutive counts must be at least 450 ms apart. The starting thresholds are 55 and 25 in ADC units for all three exercises. Tune them with hardware data.
+
+The OLED displays the live count. Press Stop, then Confirm to review the result. Press Confirm again to send the exercise summary. The Serial output also includes movement, threshold, and count messages for debugging.
+
+## V2 Hardware Validation Checklist
+
+- Hold the sensor still at the exercise starting position while calibrating. Check that the count stays at zero when stationary.
+- For each exercise, compare the OLED count with a manually observed count at multiple speeds. Record sensor placement, expected and observed counts, and missed or extra counts.
+- Check partial movements, pauses, resume, and reset. Verify the result screen and the confirmed record at 115200 baud.
+
+Automatic counting is implemented in V2. Counting accuracy and threshold tuning remain open until hardware results are recorded.
