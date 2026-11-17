@@ -29,9 +29,9 @@ The documented board is the Arduino UNO R4 Minima. The main sketch uses a 128 ×
 | Sketch | Analog inputs | Serial Monitor |
 | --- | --- | --- |
 | Main Arduino sketch | Potentiometer on A0 | 115200 baud |
-| Accelerometer test | X on A0, Y on A1, Z on A2 | 9600 baud |
+| Accelerometer test | X on A1, Y on A2, Z on A3 | 9600 baud |
 
-Open each test from its matching folder in Arduino IDE. Open the main sketch from a folder named CCCARE_Arduino. Check the accelerometer model and supply requirements before wiring. The test uses 10-bit readings and a 500 ms delay. Assign separate inputs before combining the two sketches because both currently use A0.
+Open each test from its matching folder in Arduino IDE. Open the main sketch from a folder named CCCARE_Arduino. Check the accelerometer model and supply requirements before wiring. The test uses 10-bit readings and a 500 ms delay. The potentiometer uses A0, separate from the three accelerometer inputs.
 
 ## Web App Setup
 
