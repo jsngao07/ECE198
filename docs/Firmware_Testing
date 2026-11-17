@@ -7,21 +7,26 @@ The Arduino firmware controls the OLED display, potentiometer, and push buttons.
 - **Exercise Selection:** Patients use the potentiometer to choose between Arm Curl, Leg Raise, and Sit to Stand.
 - **Exercise Targets:** The OLED displays the target repetitions and time for each exercise.
 - **Exercise Timer:** Patients can start, pause, and resume the timer using buttons.
-- **Repetition Input:** After finishing an exercise, patients use the potentiometer to enter their completed repetitions (1–104).
+- **Repetition Input:** After finishing an exercise, patients use the potentiometer to enter their completed repetitions (0–104).
 - **Exercise Summary:** The OLED displays the completed repetitions and exercise time.
 
 ## Button Controls
-- **D3:** Start 
-- **D4:** Stop 
+- **D3:** Start
+- **D4:** Stop
 - **D5:** Select / Confirm
 - **D6:** Back / Reset
 
 ## Current Implementation
-The exercise targets are currently hard-coded in the Arduino firmware for testing purposes.
+The exercise targets are currently hard-coded in the Arduino firmware for testing purposes. The firmware prints exercise records over USB Serial at 115200 baud when the user confirms the manually entered repetition count. Receiving those records in the Python application and saving them to SQLite are planned integration steps.
 
-The firmware is designed to send exercise records through USB Serial communication for future integration with the Python application and SQLite database.
+## Accelerometer Update
+The team decided to add an accelerometer for automatic repetition counting because the potentiometer readings were insufficiently accurate in the current setup.
+
+The standalone test in tests/Accelerometer_Test/Accelerometer_Test.ino prints raw X/Y/Z values from A0/A1/A2 at 9600 baud with a 500 ms delay. The main firmware still uses the potentiometer for menu selection and manual repetition input. Automatic counting is pending implementation and validation.
 
 ## Next Steps
+- Resolve the A0 conflict between the potentiometer and the accelerometer test before combining them.
+- Confirm sensor mounting and sampling requirements, then implement and validate automatic counting against manually observed repetitions.
 - Connect the Arduino firmware to the Python application.
 - Retrieve personalized exercise targets from the database.
 - Store completed exercise records digitally.
