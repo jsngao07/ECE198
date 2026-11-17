@@ -1,6 +1,6 @@
-const int xPin = A0;
-const int yPin = A1;
-const int zPin = A2;
+const int xPin = A1;
+const int yPin = A2;
+const int zPin = A3;
 
 void setup() {
   Serial.begin(9600);
