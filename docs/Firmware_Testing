@@ -22,10 +22,10 @@ The exercise targets are currently hard-coded in the Arduino firmware for testin
 ## Accelerometer Update
 The team decided to add an accelerometer for automatic repetition counting because the potentiometer readings were insufficiently accurate in the current setup.
 
-The standalone test in tests/Accelerometer_Test/Accelerometer_Test.ino prints raw X/Y/Z values from A0/A1/A2 at 9600 baud with a 500 ms delay. The main firmware still uses the potentiometer for menu selection and manual repetition input. Automatic counting is pending implementation and validation.
+The standalone test in tests/Accelerometer_Test/Accelerometer_Test.ino prints raw X/Y/Z values from A1/A2/A3 at 9600 baud with a 500 ms delay. The main firmware still uses the potentiometer for menu selection and manual repetition input. Automatic counting is pending implementation and validation.
 
 ## Next Steps
-- Resolve the A0 conflict between the potentiometer and the accelerometer test before combining them.
+- Keep the potentiometer on A0 and use A1/A2/A3 for the accelerometer when integrating it.
 - Confirm sensor mounting and sampling requirements, then implement and validate automatic counting against manually observed repetitions.
 - Connect the Arduino firmware to the Python application.
 - Retrieve personalized exercise targets from the database.
