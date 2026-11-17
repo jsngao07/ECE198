@@ -18,11 +18,11 @@ The potentiometer and buttons initially did not work properly because some bread
 ## Design Update — November 17, 2026
 The team reported that the potentiometer readings were not accurate enough for the intended use and decided to add an accelerometer for automatic exercise repetition counting. The goal is to reduce dependence on manual repetition entry through the potentiometer.
 
-An initial accelerometer test sketch is available at [Accelerometer_Test.ino](../tests/Accelerometer_Test/Accelerometer_Test.ino). It reads raw X, Y, and Z values from A0, A1, and A2 using 10-bit resolution and prints them at 9600 baud every 500 ms. It does not yet detect movements or count repetitions. Counting accuracy has not yet been validated.
+An initial accelerometer test sketch is available at [Accelerometer_Test.ino](../tests/Accelerometer_Test/Accelerometer_Test.ino). It reads raw X, Y, and Z values from A1, A2, and A3 using 10-bit resolution and prints them at 9600 baud every 500 ms. It does not yet detect movements or count repetitions. Counting accuracy has not yet been validated.
 
 ## Integration Checks and Next Steps
 - Confirm and document the accelerometer model, supply voltage, wiring, and mounting position.
-- Resolve the A0 conflict: the main firmware uses A0 for the potentiometer, while the standalone accelerometer test uses A0 for X. Assign separate inputs if both are retained.
+- Keep the potentiometer on A0 and connect accelerometer X, Y, and Z to A1, A2, and A3 respectively.
 - Record stationary and movement readings, select a suitable sampling interval, and evaluate filtering and counting thresholds.
 - Compare automatic counts with manually observed repetitions, including pauses and unintended movements.
 - Retest the complete system after integrating the sensor.
