@@ -95,9 +95,21 @@ class AppointmentSlot(db.Model):
 # Builds the Flask application, registers routes/extensions, and initializes the database.
 def create_app():
     app = Flask(__name__)
-    app.config.update(SECRET_KEY=os.environ.get('MOTION_SECRET_KEY', 'local-dev-change-this-key'),
-                      SQLALCHEMY_DATABASE_URI=f"sqlite:///{INSTANCE_DIR / 'database.db'}",
-                      SQLALCHEMY_TRACK_MODIFICATIONS=False)
+    # Keep SQLite for local development; use persistent Render Postgres in production.
+    database_url = os.environ.get('DATABASE_URL', '')
+    if database_url.startswith('postgres://'):
+        database_url = 'postgresql+psycopg://' + database_url[len('postgres://'):]
+    elif database_url.startswith('postgresql://'):
+        database_url = 'postgresql+psycopg://' + database_url[len('postgresql://'):]
+    secret_key = os.environ.get('MOTION_SECRET_KEY')
+    if database_url and not secret_key:
+        raise RuntimeError('MOTION_SECRET_KEY must be set for the deployed app')
+    app.config.update(SECRET_KEY=secret_key or 'local-dev-change-this-key',
+                      SQLALCHEMY_DATABASE_URI=database_url or f"sqlite:///{INSTANCE_DIR / 'database.db'}",
+                      SQLALCHEMY_TRACK_MODIFICATIONS=False,
+                      SESSION_COOKIE_SECURE=bool(database_url),
+                      SESSION_COOKIE_HTTPONLY=True,
+                      SESSION_COOKIE_SAMESITE='Lax')
     db.init_app(app); csrf.init_app(app)
 
     # Makes the current user and CSRF token helper available to all templates.
@@ -111,7 +123,7 @@ def create_app():
 
     # Checks that a password is exactly six characters long.
     def valid_password(value):
-        return len(value or '') == 6
+        return len(value or '') >= 12
 
     # Returns the database account stored in the current session, or None if signed out.
     def logged_in():
@@ -218,7 +230,7 @@ def create_app():
             uid=request.form.get('user_id','').strip(); name=request.form.get('name','').strip(); email=request.form.get('email','').strip() or None
             pw=request.form.get('password',''); instructor_id=request.form.get('instructor_id','')
             instructor=db.session.get(User,int(instructor_id)) if instructor_id.isdigit() else None
-            if not all([uid,name,pw,instructor]) or not valid_user_id(uid) or not valid_password(pw) or instructor.role!='instructor': flash('Enter a valid user ID (1–10 letters/numbers, starting with a letter) and a 6-character password.','error')
+            if not all([uid,name,pw,instructor]) or not valid_user_id(uid) or not valid_password(pw) or instructor.role!='instructor': flash('Enter a valid user ID (1–10 letters/numbers, starting with a letter) and a password of at least 12 characters.','error')
             elif User.query.filter(or_(User.user_id==uid, User.email==email if email else False)).first(): flash('That user ID or email is already registered.','error')
             else:
                 user=User(user_id=uid,name=name,email=email,password_hash=generate_password_hash(pw),role='patient',approved=False,instructor=instructor)
@@ -274,7 +286,7 @@ def create_app():
         elif duplicate:
             flash('That user ID or email is already in use.', 'error')
         elif new_password and not valid_password(new_password):
-            flash('A new password must contain exactly 6 characters.', 'error')
+            flash('A new password must contain at least 12 characters.', 'error')
         else:
             user.user_id, user.name, user.email = uid, name, email
             if new_password:
@@ -304,7 +316,7 @@ def create_app():
         password=request.form.get('password','')
         email=request.form.get('email','').strip() or None
         if not valid_user_id(uid) or not name or not valid_password(password):
-            flash('Use a user ID of 1–10 letters/numbers starting with a letter, a name, and a 6-character password.','error')
+            flash('Use a user ID of 1–10 letters/numbers starting with a letter, a name, and a password of at least 12 characters.','error')
         elif User.query.filter(or_(User.user_id==uid, User.email==email if email else False)).first():
             flash('That user ID or email is already registered.','error')
         else:
@@ -331,7 +343,7 @@ def create_app():
     def patient_new():
         if request.method=='POST':
             uid=request.form.get('user_id','').strip(); name=request.form.get('name','').strip(); pw=request.form.get('password',''); email=request.form.get('email','').strip() or None
-            if not valid_user_id(uid) or not name or not valid_password(pw): flash('Enter a valid user ID (1–10 letters/numbers, starting with a letter), name, and a 6-character password.','error')
+            if not valid_user_id(uid) or not name or not valid_password(pw): flash('Enter a valid user ID (1–10 letters/numbers, starting with a letter), name, and a password of at least 12 characters.','error')
             elif User.query.filter(or_(User.user_id==uid,User.email==email if email else False)).first(): flash('User ID or email already exists.','error')
             else:
                 p=User(user_id=uid,name=name,email=email,password_hash=generate_password_hash(pw),role='patient',approved=True,instructor_id=me().id)
@@ -527,7 +539,7 @@ def create_app():
         name=click.prompt('Instructor name').strip()
         password=click.prompt('Password',hide_input=True,confirmation_prompt=True)
         if not valid_user_id(uid) or not name or not valid_password(password):
-            raise click.ClickException('Use a user ID of 1–10 letters/numbers starting with a letter, a name, and a 6-character password.')
+            raise click.ClickException('Use a user ID of 1–10 letters/numbers starting with a letter, a name, and a password of at least 12 characters.')
         if User.query.filter_by(user_id=uid).first():
             raise click.ClickException('That user ID already exists.')
         db.session.add(User(user_id=uid,name=name,password_hash=generate_password_hash(password),role='instructor',approved=True))
