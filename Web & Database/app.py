@@ -8,7 +8,7 @@ from admin import ensure_admin_account
 
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from sqlalchemy import func, or_
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -111,6 +111,19 @@ def create_app():
                       SESSION_COOKIE_HTTPONLY=True,
                       SESSION_COOKIE_SAMESITE='Lax')
     db.init_app(app); csrf.init_app(app)
+
+    @app.errorhandler(CSRFError)
+    def handle_expired_form(error):
+        # Preserve CSRF protection, but provide a recoverable user experience.
+        flash('This form has expired. Please open the page again and resubmit.', 'error')
+        return redirect(url_for('dashboard') if session.get('user_id') else url_for('login'), code=303)
+
+    @app.after_request
+    def prevent_stale_forms(response):
+        # Do not cache authenticated forms: browser Back must fetch a fresh token.
+        if request.endpoint != 'static':
+            response.headers['Cache-Control'] = 'no-store, max-age=0'
+        return response
 
     # Makes the current user and CSRF token helper available to all templates.
     @app.context_processor
