@@ -13,6 +13,9 @@
   const csrfInput = document.getElementById("arduino-csrf");
   const uploadUrl = panel.dataset.uploadUrl;
 
+  // Instructors must assign a plan before the connection controls are rendered.
+  if (!connectButton || !disconnectButton || !planSelect || !statusNode || !csrfInput) return;
+
   let port = null;
   let reader = null;
   let connected = false;
