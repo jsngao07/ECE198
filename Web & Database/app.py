@@ -6,9 +6,9 @@ import re
 
 from admin import ensure_admin_account
 
-from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
+from flask import Flask, abort, flash, redirect, render_template, request, session, url_for, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from sqlalchemy import func, or_
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -95,10 +95,35 @@ class AppointmentSlot(db.Model):
 # Builds the Flask application, registers routes/extensions, and initializes the database.
 def create_app():
     app = Flask(__name__)
-    app.config.update(SECRET_KEY=os.environ.get('MOTION_SECRET_KEY', 'local-dev-change-this-key'),
-                      SQLALCHEMY_DATABASE_URI=f"sqlite:///{INSTANCE_DIR / 'database.db'}",
-                      SQLALCHEMY_TRACK_MODIFICATIONS=False)
+    # Keep SQLite for local development; use persistent Render Postgres in production.
+    database_url = os.environ.get('DATABASE_URL', '')
+    if database_url.startswith('postgres://'):
+        database_url = 'postgresql+psycopg://' + database_url[len('postgres://'):]
+    elif database_url.startswith('postgresql://'):
+        database_url = 'postgresql+psycopg://' + database_url[len('postgresql://'):]
+    secret_key = os.environ.get('MOTION_SECRET_KEY')
+    if database_url and not secret_key:
+        raise RuntimeError('MOTION_SECRET_KEY must be set for the deployed app')
+    app.config.update(SECRET_KEY=secret_key or 'local-dev-change-this-key',
+                      SQLALCHEMY_DATABASE_URI=database_url or f"sqlite:///{INSTANCE_DIR / 'database.db'}",
+                      SQLALCHEMY_TRACK_MODIFICATIONS=False,
+                      SESSION_COOKIE_SECURE=bool(database_url),
+                      SESSION_COOKIE_HTTPONLY=True,
+                      SESSION_COOKIE_SAMESITE='Lax')
     db.init_app(app); csrf.init_app(app)
+
+    @app.errorhandler(CSRFError)
+    def handle_expired_form(error):
+        # Preserve CSRF protection, but provide a recoverable user experience.
+        flash('This form has expired. Please open the page again and resubmit.', 'error')
+        return redirect(url_for('dashboard') if session.get('user_id') else url_for('login'), code=303)
+
+    @app.after_request
+    def prevent_stale_forms(response):
+        # Do not cache authenticated forms: browser Back must fetch a fresh token.
+        if request.endpoint != 'static':
+            response.headers['Cache-Control'] = 'no-store, max-age=0'
+        return response
 
     # Makes the current user and CSRF token helper available to all templates.
     @app.context_processor
@@ -111,7 +136,7 @@ def create_app():
 
     # Checks that a password is exactly six characters long.
     def valid_password(value):
-        return len(value or '') == 6
+        return len(value or '') >= 12
 
     # Returns the database account stored in the current session, or None if signed out.
     def logged_in():
@@ -218,7 +243,7 @@ def create_app():
             uid=request.form.get('user_id','').strip(); name=request.form.get('name','').strip(); email=request.form.get('email','').strip() or None
             pw=request.form.get('password',''); instructor_id=request.form.get('instructor_id','')
             instructor=db.session.get(User,int(instructor_id)) if instructor_id.isdigit() else None
-            if not all([uid,name,pw,instructor]) or not valid_user_id(uid) or not valid_password(pw) or instructor.role!='instructor': flash('Enter a valid user ID (1–10 letters/numbers, starting with a letter) and a 6-character password.','error')
+            if not all([uid,name,pw,instructor]) or not valid_user_id(uid) or not valid_password(pw) or instructor.role!='instructor': flash('Enter a valid user ID (1–10 letters/numbers, starting with a letter) and a password of at least 12 characters.','error')
             elif User.query.filter(or_(User.user_id==uid, User.email==email if email else False)).first(): flash('That user ID or email is already registered.','error')
             else:
                 user=User(user_id=uid,name=name,email=email,password_hash=generate_password_hash(pw),role='patient',approved=False,instructor=instructor)
@@ -274,7 +299,7 @@ def create_app():
         elif duplicate:
             flash('That user ID or email is already in use.', 'error')
         elif new_password and not valid_password(new_password):
-            flash('A new password must contain exactly 6 characters.', 'error')
+            flash('A new password must contain at least 12 characters.', 'error')
         else:
             user.user_id, user.name, user.email = uid, name, email
             if new_password:
@@ -304,7 +329,7 @@ def create_app():
         password=request.form.get('password','')
         email=request.form.get('email','').strip() or None
         if not valid_user_id(uid) or not name or not valid_password(password):
-            flash('Use a user ID of 1–10 letters/numbers starting with a letter, a name, and a 6-character password.','error')
+            flash('Use a user ID of 1–10 letters/numbers starting with a letter, a name, and a password of at least 12 characters.','error')
         elif User.query.filter(or_(User.user_id==uid, User.email==email if email else False)).first():
             flash('That user ID or email is already registered.','error')
         else:
@@ -331,7 +356,7 @@ def create_app():
     def patient_new():
         if request.method=='POST':
             uid=request.form.get('user_id','').strip(); name=request.form.get('name','').strip(); pw=request.form.get('password',''); email=request.form.get('email','').strip() or None
-            if not valid_user_id(uid) or not name or not valid_password(pw): flash('Enter a valid user ID (1–10 letters/numbers, starting with a letter), name, and a 6-character password.','error')
+            if not valid_user_id(uid) or not name or not valid_password(pw): flash('Enter a valid user ID (1–10 letters/numbers, starting with a letter), name, and a password of at least 12 characters.','error')
             elif User.query.filter(or_(User.user_id==uid,User.email==email if email else False)).first(): flash('User ID or email already exists.','error')
             else:
                 p=User(user_id=uid,name=name,email=email,password_hash=generate_password_hash(pw),role='patient',approved=True,instructor_id=me().id)
@@ -445,6 +470,46 @@ def create_app():
             except ValueError: flash('Enter valid completed sets, reps, and duration.','error')
         return render_template('progress_form.html',plan=plan)
 
+    # Save a USB Serial exercise record against the signed-in patient's active prescription.
+    # This endpoint is called by the patient's browser after explicit Web Serial permission.
+    @app.route('/api/device/progress', methods=['POST'])
+    @role_required('patient')
+    def device_progress():
+        values = request.get_json(silent=True)
+        if not isinstance(values, dict):
+            return jsonify(error='Invalid exercise record.'), 400
+
+        plan_id = values.get('plan_id')
+        reps = values.get('actual_reps')
+        seconds = values.get('actual_seconds')
+        exercise_name = values.get('exercise_name')
+        if (type(plan_id) is not int or type(reps) is not int
+                or type(seconds) is not int or not isinstance(exercise_name, str)):
+            return jsonify(error='Exercise record contains invalid values.'), 400
+        if not (0 <= reps <= 10000 and 0 <= seconds <= 36000):
+            return jsonify(error='Exercise count or duration is outside the permitted range.'), 400
+
+        plan = db.session.get(ExercisePlan, plan_id)
+        if not plan or not plan.active or plan.patient_id != me().id:
+            return jsonify(error='This patient has no matching active exercise plan.'), 404
+        if exercise_name.strip().casefold() != plan.exercise.name.strip().casefold():
+            return jsonify(error='Arduino exercise does not match the selected prescription.'), 400
+
+        # The current firmware reports one exercise session rather than a set count,
+        # and reports seconds while the existing database stores duration in minutes.
+        minutes = (seconds + 59) // 60 if seconds else None
+        log = ProgressLog(
+            patient=me(),
+            plan=plan,
+            sets_completed=1,
+            reps_completed=reps,
+            duration_minutes=minutes,
+            notes=f'Imported from Arduino USB Serial. Recorded duration: {seconds} seconds.'
+        )
+        db.session.add(log)
+        db.session.commit()
+        return jsonify(ok=True, message='Arduino exercise saved to your profile.', log_id=log.id)
+
     # APPOINTMENTS: request times, approve, decline, counter-propose, or cancel.
     # Appointment requests are shared between the two linked accounts.
     # Lists appointment requests where the current user is either requester or recipient.
@@ -527,7 +592,7 @@ def create_app():
         name=click.prompt('Instructor name').strip()
         password=click.prompt('Password',hide_input=True,confirmation_prompt=True)
         if not valid_user_id(uid) or not name or not valid_password(password):
-            raise click.ClickException('Use a user ID of 1–10 letters/numbers starting with a letter, a name, and a 6-character password.')
+            raise click.ClickException('Use a user ID of 1–10 letters/numbers starting with a letter, a name, and a password of at least 12 characters.')
         if User.query.filter_by(user_id=uid).first():
             raise click.ClickException('That user ID already exists.')
         db.session.add(User(user_id=uid,name=name,password_hash=generate_password_hash(password),role='instructor',approved=True))
@@ -540,6 +605,12 @@ def create_app():
         ensure_admin_account(db, User)
         if Exercise.query.count()==0:
             db.session.add_all([Exercise(name='Squat',category='Strength',description='Lower-body strength exercise.'),Exercise(name='Push-up',category='Strength',description='Upper-body bodyweight exercise.'),Exercise(name='Plank',category='Core',description='Core stability exercise.'),Exercise(name='Walking',category='Cardio',description='Steady-paced walking.')]); db.session.commit()
+        # Keep the library aligned with the exercises used by Arduino V2 and V3.
+        for exercise_name in ('Arm Curl', 'Leg Raise', 'Sit to Stand', 'Front Arm Raise', 'Lateral Arm Raise'):
+            if not Exercise.query.filter_by(name=exercise_name).first():
+                db.session.add(Exercise(name=exercise_name, category='Strength',
+                                        description='Exercise available on CCCARE Arduino firmware.'))
+        db.session.commit()
     return app
 
 app=create_app()
