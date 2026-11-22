@@ -8,6 +8,8 @@ services:
     region: oregon
     repo: https://github.com/milinkaa/ECE198
     branch: render-demo
+    # Deploy only after the GitHub Actions "Tests" workflow passes.
+    autoDeployTrigger: checksPass
     buildCommand: cd 'Web & Database' && pip install -r requirements.txt
     startCommand: cd 'Web & Database' && gunicorn --bind 0.0.0.0:$PORT app:app
     envVars:
