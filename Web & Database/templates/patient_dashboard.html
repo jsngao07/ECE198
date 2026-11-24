@@ -1,7 +1,7 @@
 {% extends 'base.html' %}{% block title %}Overview · Motion{% endblock %}{% block content %}<header class="page-head"><div><p class="eyebrow">PATIENT</p><h1>Overview</h1></div><a class="primary" href="{{ url_for('appointment_new') }}">Request appointment</a></header><section class="section"><div class="section-head"><h2>My exercise plan</h2></div>{% if plans %}<div class="cards">{% for p in plans %}<article class="card"><div class="card-top"><span class="category">{{ p.exercise.category }}</span><span class="muted">{{ p.frequency_per_week }}× / week</span></div><h3>{{ p.exercise.name }}</h3><p>{{ p.sets }} sets × {{ p.reps }} reps{% if p.duration_minutes %} · {{ p.duration_minutes }} min{% endif %}</p>{% if p.instructions %}<p class="muted">{{ p.instructions }}</p>{% endif %}<a class="primary" href="{{ url_for('progress_log',plan_id=p.id) }}">Log exercise</a></article>{% endfor %}</div>{% else %}<p class="empty">No active exercises assigned.</p>{% endif %}</section>
-<section class="section" id="arduino-sync" data-upload-url="{{ url_for('device_progress') }}">
+<section class="section" id="arduino-sync" data-prescription-url="{{ url_for('device_prescription', plan_id=0) }}" data-upload-url="{{ url_for('device_progress') }}">
   <div class="section-head"><h2>Arduino USB Sync</h2></div>
-  <p class="muted">Use desktop Chrome or Edge. Connect the Arduino by USB, select your assigned exercise plan, and press <strong>Connect Arduino</strong>. After the workout, press Confirm on the Arduino confirmation screen to save the result automatically.</p>
+  <p class="muted">Use desktop Chrome or Edge. Connect the Arduino by USB, select your assigned exercise plan, and press <strong>Connect Arduino</strong>. With firmware v4 installed, press <strong>Send dosage to Arduino</strong> and wait for confirmation before starting. After the workout, press Confirm on the Arduino confirmation screen to save the result automatically.</p>
   <div class="form-card">
     {% if plans %}
     <label>Exercise plan
@@ -14,10 +14,11 @@
     <input id="arduino-csrf" type="hidden" value="{{ csrf_token() }}">
     <div class="actions">
       <button type="button" id="arduino-connect" class="primary">Connect Arduino</button>
+      <button type="button" id="arduino-send" class="primary" disabled>Send dosage to Arduino</button>
       <button type="button" id="arduino-disconnect" disabled>Disconnect</button>
     </div>
     <p id="arduino-status" role="status" aria-live="polite" class="muted">Not connected. Close the Arduino IDE Serial Monitor before connecting.</p>
-    <p class="muted">The Arduino's exercise name must match the assigned exercise plan. Your session is saved to the currently signed-in patient only.</p>
+    <p class="muted">Dosage sync requires v4 and an assigned duration (1–60 minutes). It sends the selected plan’s reps and time; sets, weekly frequency, and instructions stay on the website. Each Arduino record represents one set. Select the same exercise on the device. The Arduino's exercise name must match the assigned exercise plan. Your session is saved to the currently signed-in patient only.</p>
     {% else %}
     <p class="muted">Your instructor must first assign an active exercise plan before you can import Arduino records.</p>
     {% endif %}
