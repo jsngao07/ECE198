@@ -470,6 +470,26 @@ def create_app():
             except ValueError: flash('Enter valid completed sets, reps, and duration.','error')
         return render_template('progress_form.html',plan=plan)
 
+    # Firmware indices are protocol constants, NOT Exercise database primary keys.
+    @app.route('/api/device/plans/<int:plan_id>')
+    @role_required('patient')
+    def device_prescription(plan_id):
+        plan = db.session.get(ExercisePlan, plan_id)
+        if not plan or not plan.active or plan.patient_id != me().id:
+            return jsonify(error='This patient has no matching active exercise plan.'), 404
+        firmware_exercises = {'arm curl': 0, 'front arm raise': 1, 'lateral arm raise': 2}
+        exercise_index = firmware_exercises.get(plan.exercise.name.strip().casefold())
+        if exercise_index is None:
+            return jsonify(error='Arduino v4 supports Arm Curl, Front Arm Raise, and Lateral Arm Raise only.'), 422
+        if not plan.duration_minutes or not 1 <= plan.duration_minutes <= 60:
+            return jsonify(error='Ask your instructor to assign a duration from 1 to 60 minutes before sending dosage.'), 422
+        if not 1 <= plan.reps <= 1000:
+            return jsonify(error='Arduino v4 requires a target from 1 to 1000 reps.'), 422
+        seconds = plan.duration_minutes * 60
+        return jsonify(ok=True, plan_id=plan.id, exercise_name=plan.exercise.name,
+                       exercise_index=exercise_index, reps=plan.reps, seconds=seconds,
+                       sets=plan.sets, command=f'SET,{exercise_index},{plan.reps},{seconds}\n')
+
     # Save a USB Serial exercise record against the signed-in patient's active prescription.
     # This endpoint is called by the patient's browser after explicit Web Serial permission.
     @app.route('/api/device/progress', methods=['POST'])
