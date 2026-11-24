@@ -2,6 +2,8 @@
 
 CCCARE is an ECE198 exercise-tracking prototype connecting an Arduino motion sensor and OLED interface to **Motion**, our web portal. Instructors assign exercise dosage, patients complete exercises, and instructors review progress. The patient's browser bridges the website and Arduino over USB.
 
+[Motion classroom demo](https://ece198-motion-demo.onrender.com/) · Hosted from the Render deployment branch described below.
+
 ## Product and features
 
 | Component | Features |
@@ -185,7 +187,9 @@ Set `MOTION_ADMIN_PASSWORD` to at least 12 characters before first startup to pr
 
 ### Deployment configuration
 
-[render.yaml](render.yaml) names `ece198-motion-demo`, but currently points to **`milinkaa/ECE198`, branch `render-demo`**, rather than this repository's `main`. The repository contains no explicit public website URL; read the actual URL from the Render dashboard. Updating this repository alone does not establish that the hosted app received the fix. Deploy this revision through the service's configured source, or deliberately update that source, preserving its database and environment variables.
+[Render configuration](render.yaml) and the [GitHub deployment status](https://github.com/milinkaa/ECE198/deployments) identify the demo as `ece198-motion-demo`, deployed from **`milinkaa/ECE198:render-demo`**. This repository's `main` contains the Arduino v4 bridge.
+
+The demo currently sends `PLAN,<exercise_name>,<sets>,<reps>,<seconds>,<frequency>` and expects `PLAN_OK`. The v4 sketch accepts `SET,<exercise_index>,<reps>,<seconds>` and replies with `ACK` or `ERROR`. This mismatch prevents dosage transfer while the shared `EXERCISE` format still allows workout uploads. The hosted service needs a v4-compatible web revision while retaining its database and environment variables.
 
 ## Verification
 
