@@ -1,12 +1,12 @@
-# Runs the Flask test suite on every push and pull request to render-demo.
+# Runs Flask and browser bridge tests on main and render-demo.
 # Render (with autoDeployTrigger: checksPass) only deploys if this passes.
 name: Tests
 
 on:
   push:
-    branches: [render-demo]
+    branches: [main, render-demo]
   pull_request:
-    branches: [render-demo]
+    branches: [main, render-demo]
 
 jobs:
   pytest:
@@ -28,3 +28,10 @@ jobs:
 
       - name: Run tests
         run: python -m pytest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Test USB Serial bridge
+        run: node --test tests/arduino-sync.test.cjs
